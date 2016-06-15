@@ -118,7 +118,7 @@ public class PhishTopologyBuilder {
             .setNumTasks(1);
 		builder.setBolt("googletrends", new ClientBuildingGoogleSemBolt(poolConfig, new File(proxyDataFile), new WrappedRequest()), 8)
 		    .addConfiguration("timeout", 2000)
-		    .shuffleGrouping("urlmatch")
+            .fieldsGrouping("urlmatch", new Fields("word", "url"))
 			.setNumTasks(8);
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 			.globalGrouping("googletrends")

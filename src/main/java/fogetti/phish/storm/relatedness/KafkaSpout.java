@@ -49,6 +49,11 @@ public class KafkaSpout extends BasicSchemeSpout {
             this.offset = offset;
             this.type = type;
         }
+
+        @Override
+        public String toString() {
+            return "KafkaMessageId [offset=" + offset + ", value=" + value + ", type=" + type + "]";
+        }
     }
 
     static class ByteBufferAndKafkaMessageId implements Comparable<ByteBufferAndKafkaMessageId>, Serializable {
@@ -101,11 +106,21 @@ public class KafkaSpout extends BasicSchemeSpout {
                 ByteBufferMessageSet msgs = KafkaUtils.fetchMessages(kafkaConfig, consumer, partition, offset);
                 if (msgs != null) {
                     for (MessageAndOffset msg : msgs) {
-                        Message message = msg.message();
-                        KafkaMessageId msgId = new KafkaMessageId(msg.offset(), KAFKA_MESSAGE_TYPE.GOOGLE_TREND);
-                        ByteBufferAndKafkaMessageId data = new ByteBufferAndKafkaMessageId(message.payload(), msgId);
-                        bufferq.put(data);
-                        emittedoffset = Math.max(msg.nextOffset(), emittedoffset);
+                        final Long cur_offset = msg.offset();
+                        if (cur_offset < offset) {
+                            // Skip any old offsets.
+                            continue;
+                        }
+                        if (processingNewTuples || retrymgr.shouldRetryMsg(cur_offset)) {
+                            Message message = msg.message();
+                            KafkaMessageId msgId = new KafkaMessageId(msg.offset(), KAFKA_MESSAGE_TYPE.GOOGLE_TREND);
+                            ByteBufferAndKafkaMessageId data = new ByteBufferAndKafkaMessageId(message.payload(), msgId);
+                            bufferq.put(data);
+                            emittedoffset = Math.max(msg.nextOffset(), emittedoffset);
+                            if (retrymgr.shouldRetryMsg(cur_offset)) {
+                                retrymgr.retryStarted(cur_offset);
+                            }
+                        }
                     }
                 }
             } catch (TopicOffsetOutOfRangeException e) {

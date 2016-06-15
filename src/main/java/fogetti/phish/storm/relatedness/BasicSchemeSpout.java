@@ -46,7 +46,7 @@ public abstract class BasicSchemeSpout extends BaseRichSpout {
         if (data != null && data.buffer != null) {
             data.msgId.value = StringScheme.deserializeString(data.buffer);
             collector.emit(scheme.deserialize(data.buffer), data.msgId);
-            logger.info("Emitted [{}]", data.msgId.value);
+            logger.info("Emitted [{}]", data.msgId);
         }
     }
     
