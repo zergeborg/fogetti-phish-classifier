@@ -2,7 +2,13 @@ package fogetti.phish.storm.relatedness.intersection;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Base64.Decoder;
@@ -10,6 +16,7 @@ import java.util.Base64.Encoder;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -30,7 +37,10 @@ import fogetti.phish.storm.client.Terms;
 import fogetti.phish.storm.client.WrappedRequest;
 import fogetti.phish.storm.relatedness.AckResult;
 import fogetti.phish.storm.relatedness.KafkaSpout.KafkaMessageId;
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import redis.clients.jedis.Jedis;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Attribute;
@@ -51,15 +61,18 @@ public class ClassifierBolt extends AbstractRedisBolt {
     private Decoder decoder;
     private ObjectMapper mapper;
     private OutputCollector collector;
-    private int connectTimeout = 30000;
-    private int socketTimeout = 30000;
+    private int connectTimeout = 10000;
+    private int socketTimeout = 10000;
     private String modelpath;
     private String instancesPath;
+    private String proxyDataFile;
+    private List<String> proxyList;
 
-    public ClassifierBolt(JedisPoolConfig config, String modelpath, String instancesPath) {
+    public ClassifierBolt(JedisPoolConfig config, String modelpath, String instancesPath, String proxyDataFile) {
         super(config);
         this.modelpath = modelpath;
         this.instancesPath = instancesPath;
+        this.proxyDataFile = proxyDataFile;
     }
     
     @Override
@@ -78,10 +91,15 @@ public class ClassifierBolt extends AbstractRedisBolt {
             logger.error("Could not load labeled instances", e);
         } 
         try {
-            rforest = (RandomForest) weka.core.SerializationHelper.read(modelpath);
+            this.rforest = (RandomForest) weka.core.SerializationHelper.read(modelpath);
         } catch (Exception e) {
             logger.error("Could not load the serialized classifier model", e);
         } 
+        try {
+            this.proxyList = Files.readAllLines(Paths.get(proxyDataFile));
+        } catch (IOException e) {
+            logger.error("Preparing the Google SEM bolt failed", e);
+        }
     }
 
     @Override
@@ -178,14 +196,39 @@ public class ClassifierBolt extends AbstractRedisBolt {
         return null;
     }
 
-    private OkHttpClient buildClient() {
+    private OkHttpClient buildClient() throws UnknownHostException {
+        int nextPick = new Random().nextInt(proxyList.size());
+        String nextProxy = proxyList.get(nextPick);
+        String[] hostAndPort = nextProxy.split(":");
+        String host = hostAndPort[0];
+        int port = Integer.parseInt(hostAndPort[1]);
         OkHttpClient client
             = new OkHttpClient
                 .Builder()
                 .connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(socketTimeout, TimeUnit.MILLISECONDS)
                 .writeTimeout(socketTimeout, TimeUnit.MILLISECONDS)
-                .build();
+                .retryOnConnectionFailure(true)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(InetAddress.getByName(host), port)))
+                .addInterceptor(new Interceptor() {
+                    @Override
+                    public Response intercept(Chain chain) throws IOException {
+                        Request request = chain.request();
+                        // try the request
+                        Response response = chain.proceed(request);
+                        int tryCount = 0;
+                        while (!response.isSuccessful() && tryCount < 3) {
+                            logger.info("Retry request [{}] was not successful", tryCount);
+                            tryCount++;
+                            // retry the request
+                            response = chain.proceed(request);
+                        }
+                        // otherwise just pass the original response on
+                        return response;
+                    }
+                }).build();
         return client;
     }
 

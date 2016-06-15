@@ -136,6 +136,7 @@ public class IntersectionResult {
                 String text = e.attr("TEXT");
                 RANKING = Integer.valueOf(text);
             }
+            response.body().close();
         } catch (IOException e) {
             logger.error("Alexa ranking lookup failed", e);
         }

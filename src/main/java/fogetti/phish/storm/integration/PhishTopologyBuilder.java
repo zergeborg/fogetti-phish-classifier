@@ -104,11 +104,11 @@ public class PhishTopologyBuilder {
 		builder
 			.setSpout("urlsource", buildURLSpout(kafkaSpoutProps), 1)
 			.setMaxSpoutPending(150);
-		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
+		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 8)
 		    .fieldsGrouping("urlsource", SUCCESS_STREAM, new Fields("url"))
-		    .setNumTasks(1);
+		    .setNumTasks(16);
 		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
-		    .shuffleGrouping("classifier")
+		    .fieldsGrouping("classifier", new Fields("key", "message"))
 		    .setNumTasks(1);
 		builder.setBolt("urlbolt", new URLBolt(), 1)
 		    .fieldsGrouping("urlsource", new Fields("str"))
@@ -140,8 +140,8 @@ public class PhishTopologyBuilder {
         return kafkabolt;
     }
 
-    private static ClassifierBolt buildClassifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {
-        return new ClassifierBolt(poolConfig, modelpath, instancesPath);
+    private static ClassifierBolt buildClassifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath, String proxyDataFile) throws IOException {
+        return new ClassifierBolt(poolConfig, modelpath, instancesPath, proxyDataFile);
     }
 
 	private static IntersectionBolt intersectionBolt(JedisPoolConfig poolConfig) throws Exception {
