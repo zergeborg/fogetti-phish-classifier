@@ -61,8 +61,8 @@ public class ClassifierBolt extends AbstractRedisBolt {
     private Decoder decoder;
     private ObjectMapper mapper;
     private OutputCollector collector;
-    private int connectTimeout = 10000;
-    private int socketTimeout = 10000;
+    private int connectTimeout = 30000;
+    private int socketTimeout = 30000;
     private String modelpath;
     private String instancesPath;
     private String proxyDataFile;
