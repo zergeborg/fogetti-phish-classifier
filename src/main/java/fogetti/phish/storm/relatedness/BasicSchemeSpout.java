@@ -18,7 +18,7 @@ public abstract class BasicSchemeSpout extends BaseRichSpout {
     private static final long serialVersionUID = -832374927567182090L;
     private static final Logger logger = LoggerFactory.getLogger(BasicSchemeSpout.class);
     private final Scheme scheme;
-    private SpoutOutputCollector collector;
+    private transient SpoutOutputCollector collector;
 
     public BasicSchemeSpout(final Scheme scheme) {
         this.scheme = scheme;

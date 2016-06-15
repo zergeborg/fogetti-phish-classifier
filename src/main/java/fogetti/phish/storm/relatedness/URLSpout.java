@@ -30,7 +30,7 @@ public class URLSpout extends KafkaSpout {
     private static final long serialVersionUID = -6424905468176142975L;
 	private static final Logger logger = LoggerFactory.getLogger(URLSpout.class);
 	private static final int METRICS_WINDOW = 10;
-    private SpoutOutputCollector collector;
+    private transient SpoutOutputCollector collector;
     private transient CountMetric spoutAcked;
     private transient CountMetric spoutFailed;
     private transient CountMetric spoutEmitted;

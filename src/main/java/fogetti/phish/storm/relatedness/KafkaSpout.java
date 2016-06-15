@@ -120,9 +120,9 @@ public class KafkaSpout extends BasicSchemeSpout {
 
     private static final long serialVersionUID = 1064554017925026658L;
     private static final Logger logger = LoggerFactory.getLogger(KafkaSpout.class);
-    private BlockingQueue<ByteBufferAndKafkaMessageId> bufferq;
-    private FailedMsgRetryManager retrymgr;
-    private NonBlockingConsumerIterator iterator;
+    private transient BlockingQueue<ByteBufferAndKafkaMessageId> bufferq;
+    private transient FailedMsgRetryManager retrymgr;
+    private transient NonBlockingConsumerIterator iterator;
     private Properties kafkaProps;
 
     public KafkaSpout(Properties kafkaProps, Scheme scheme) {
