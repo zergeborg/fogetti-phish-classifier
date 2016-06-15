@@ -1,5 +1,6 @@
 package fogetti.phish.storm.relatedness.intersection;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.converters.CSVLoader;
 
 public class ClassifierBolt extends AbstractRedisBolt {
 
@@ -52,11 +54,12 @@ public class ClassifierBolt extends AbstractRedisBolt {
     private int connectTimeout = 30000;
     private int socketTimeout = 30000;
     private String modelpath;
+    private String instancesPath;
 
-    public ClassifierBolt(JedisPoolConfig config, String modelpath, Instances instances) {
+    public ClassifierBolt(JedisPoolConfig config, String modelpath, String instancesPath) {
         super(config);
         this.modelpath = modelpath;
-        this.instances = instances;
+        this.instancesPath = instancesPath;
     }
     
     @Override
@@ -67,6 +70,13 @@ public class ClassifierBolt extends AbstractRedisBolt {
         this.mapper = new ObjectMapper();
         this.encoder = Base64.getEncoder();
         this.decoder = Base64.getDecoder();
+        CSVLoader loader = new CSVLoader();
+        try {
+            loader.setSource(new File(instancesPath));
+            this.instances = loader.getDataSet();
+        } catch (Exception e) {
+            logger.error("Could not load labeled instances", e);
+        } 
         try {
             rforest = (RandomForest) weka.core.SerializationHelper.read(modelpath);
         } catch (Exception e) {

@@ -22,8 +22,6 @@ import fogetti.phish.storm.relatedness.URLBolt;
 import fogetti.phish.storm.relatedness.URLSpout;
 import fogetti.phish.storm.relatedness.intersection.ClassifierBolt;
 import fogetti.phish.storm.relatedness.intersection.IntersectionBolt;
-import weka.core.Instances;
-import weka.core.converters.CSVLoader;
 
 public class PhishTopologyBuilder {
 
@@ -143,10 +141,7 @@ public class PhishTopologyBuilder {
     }
 
     private static ClassifierBolt buildClassifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {
-        CSVLoader loader = new CSVLoader();
-        loader.setSource(new File(instancesPath));
-        Instances instances = loader.getDataSet();
-        return new ClassifierBolt(poolConfig, modelpath, instances);
+        return new ClassifierBolt(poolConfig, modelpath, instancesPath);
     }
 
 	private static IntersectionBolt intersectionBolt(JedisPoolConfig poolConfig) throws Exception {
