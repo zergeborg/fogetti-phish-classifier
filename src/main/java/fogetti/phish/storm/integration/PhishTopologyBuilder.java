@@ -27,7 +27,9 @@ import weka.core.converters.CSVLoader;
 
 public class PhishTopologyBuilder {
 
-    public static final String REDIS_SEGMENT_PREFIX = "segment:"; 
+    public static final String REDIS_SEGMENT_PREFIX = "segment:";
+    
+    // DEFAULTS
     private static String countDataFile = System.getProperty("count.data.file");
     private static String psDataFile = System.getProperty("ps.data.file");
     private static String proxyDataFile = System.getProperty("proxy.data.file");
@@ -47,6 +49,8 @@ public class PhishTopologyBuilder {
     private static String redisPassword = "Macska12";
     
 	public static StormTopology build() throws Exception {
+        Properties kafkaSpoutProps = buildSpoutProps();
+        Properties kafkaBoltProps = buildBoltProps();
 		return build(
 		        countDataFile,
 		        psDataFile,
@@ -55,8 +59,33 @@ public class PhishTopologyBuilder {
 		        instancesDataFile,
 		        redisHost,
 		        redisPort,
-		        redisPassword);
+		        redisPassword,
+		        kafkaTopicResponse,
+		        kafkaSpoutProps,
+		        kafkaBoltProps);
 	}
+
+    private static Properties buildSpoutProps() {
+        Properties kafkaSpoutProps = new Properties();
+        kafkaSpoutProps.put("zookeeper.connect.string", kafkaZkconnection);
+        kafkaSpoutProps.put("zookeeper.connection.timeout.ms", kafkaZkconnectionTimeoutMs);
+        kafkaSpoutProps.put("kafka.consumer.topic", kafkaTopicRequest);
+        kafkaSpoutProps.put("kafka.consumer.client.id", kafkaSpoutClientId);
+        kafkaSpoutProps.put("kafka.broker.host", kafkaBrokerHost);
+        kafkaSpoutProps.put("kafka.broker.port", kafkaBrokerPort);
+        kafkaSpoutProps.put("kafka.broker.connection.timeout.ms", kafkaBrokerConnectionTimeoutMs);
+        kafkaSpoutProps.put("kafka.consumer.partition.nr", kafkaConsumerPartitionNr);
+        return kafkaSpoutProps;
+    }
+
+    private static Properties buildBoltProps() {
+        Properties kafkaBoltProps = new Properties();
+        kafkaBoltProps.put("bootstrap.servers", kafkaBrokerHost+":"+kafkaBrokerPort);
+        kafkaBoltProps.put("acks", "1");
+        kafkaBoltProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        kafkaBoltProps.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        return kafkaBoltProps;
+    }
 
 	public static StormTopology build(
 	        String countDataFile,
@@ -66,18 +95,21 @@ public class PhishTopologyBuilder {
 	        String instancesDataFile,
             String redishost,
 	        Integer redisport,
-	        String redispword) throws Exception {
+	        String redispword,
+	        String kafkaTopicResponse,
+	        Properties kafkaSpoutProps,
+	        Properties kafkaBoltProps) throws Exception {
 		TopologyBuilder builder = new TopologyBuilder();
 
 		JedisPoolConfig poolConfig = new JedisPoolConfig.Builder()
 	        .setHost(redishost).setPort(redisport).setPassword(redispword).build();
 		builder
-			.setSpout("urlsource", buildURLSpout(), 1)
-			.setMaxSpoutPending(1);
+			.setSpout("urlsource", buildURLSpout(kafkaSpoutProps), 1)
+			.setMaxSpoutPending(150);
 		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
 		    .fieldsGrouping("urlsource", SUCCESS_STREAM, new Fields("url"))
 		    .setNumTasks(1);
-		builder.setBolt("kafkawriter", buildKafkaBolt(), 1)
+		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
 		    .shuffleGrouping("classifier")
 		    .setNumTasks(1);
 		builder.setBolt("urlbolt", new URLBolt(), 1)
@@ -97,26 +129,12 @@ public class PhishTopologyBuilder {
 		return topology;
 	}
 
-    private static URLSpout buildURLSpout() {
-        Properties kafkaProps = new Properties();
-        kafkaProps.put("zookeeper.connect.string", kafkaZkconnection);
-        kafkaProps.put("zookeeper.connection.timeout.ms", kafkaZkconnectionTimeoutMs);
-        kafkaProps.put("kafka.consumer.topic", kafkaTopicRequest);
-        kafkaProps.put("kafka.consumer.client.id", kafkaSpoutClientId);
-        kafkaProps.put("kafka.broker.host", kafkaBrokerHost);
-        kafkaProps.put("kafka.broker.port", kafkaBrokerPort);
-        kafkaProps.put("kafka.broker.connection.timeout.ms", kafkaBrokerConnectionTimeoutMs);
-        kafkaProps.put("kafka.consumer.partition.nr", kafkaConsumerPartitionNr);
+    private static URLSpout buildURLSpout(Properties kafkaProps) {
         URLSpout spout = new URLSpout(kafkaProps, new StringScheme());
         return spout;
     }
 
-    private static KafkaBolt<String, String> buildKafkaBolt() {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", kafkaBrokerHost+":"+kafkaBrokerPort);
-        props.put("acks", "1");
-        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    private static KafkaBolt<String, String> buildKafkaBolt(Properties props, String kafkaTopicResponse) {
         KafkaBolt<String, String> kafkabolt = new KafkaBolt<String, String>()
                 .withProducerProperties(props)
                 .withTopicSelector(new DefaultTopicSelector(kafkaTopicResponse))
