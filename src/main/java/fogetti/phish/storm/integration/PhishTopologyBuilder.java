@@ -28,14 +28,34 @@ import weka.core.converters.CSVLoader;
 public class PhishTopologyBuilder {
 
     public static final String REDIS_SEGMENT_PREFIX = "segment:"; 
+    private static String countDataFile = System.getProperty("count.data.file");
+    private static String psDataFile = System.getProperty("ps.data.file");
+    private static String proxyDataFile = System.getProperty("proxy.data.file");
+    private static String modelDataFile = System.getProperty("model.data.file");
+    private static String instancesDataFile = System.getProperty("instances.data.file");
+    private static String kafkaTopicRequest = "phish-storm-request";
+    private static String kafkaTopicResponse = "phish-storm-response";
+    private static String kafkaSpoutClientId = "phish-storm-client";
+    private static int kafkaConsumerPartitionNr = 0;
+    private static String kafkaBrokerHost = "localhost";
+    private static int kafkaBrokerPort = 9092;
+    private static int kafkaBrokerConnectionTimeoutMs = 100000;
+    private static String kafkaZkconnection = "localhost:2181";
+    private static int kafkaZkconnectionTimeoutMs = 1000000;
+    private static String redisHost = "petrucci";
+    private static int redisPort = 6379;
+    private static String redisPassword = "Macska12";
     
 	public static StormTopology build() throws Exception {
-		String countDataFile = System.getProperty("count.data.file");
-		String psDataFile = System.getProperty("ps.data.file");
-		String proxyDataFile = System.getProperty("proxy.data.file");
-		String modelDataFile = System.getProperty("model.data.file");
-        String instancesDataFile = System.getProperty("instances.data.file");
-		return build(countDataFile, psDataFile, proxyDataFile, modelDataFile, instancesDataFile, "petrucci", 6379, "Macska12");
+		return build(
+		        countDataFile,
+		        psDataFile,
+		        proxyDataFile,
+		        modelDataFile,
+		        instancesDataFile,
+		        redisHost,
+		        redisPort,
+		        redisPassword);
 	}
 
 	public static StormTopology build(
@@ -79,22 +99,27 @@ public class PhishTopologyBuilder {
 
     private static URLSpout buildURLSpout() {
         Properties kafkaProps = new Properties();
-        kafkaProps.put("zookeeper.connect", "localhost:2181");
-        kafkaProps.put("zookeeper.connection.timeout.ms", "1000000");
-        kafkaProps.put("group.id", "phish-storm-request");
-        URLSpout spout = new URLSpout(kafkaProps, "phish-storm-request", new StringScheme());
+        kafkaProps.put("zookeeper.connect.string", kafkaZkconnection);
+        kafkaProps.put("zookeeper.connection.timeout.ms", kafkaZkconnectionTimeoutMs);
+        kafkaProps.put("kafka.consumer.topic", kafkaTopicRequest);
+        kafkaProps.put("kafka.consumer.client.id", kafkaSpoutClientId);
+        kafkaProps.put("kafka.broker.host", kafkaBrokerHost);
+        kafkaProps.put("kafka.broker.port", kafkaBrokerPort);
+        kafkaProps.put("kafka.broker.connection.timeout.ms", kafkaBrokerConnectionTimeoutMs);
+        kafkaProps.put("kafka.consumer.partition.nr", kafkaConsumerPartitionNr);
+        URLSpout spout = new URLSpout(kafkaProps, new StringScheme());
         return spout;
     }
 
     private static KafkaBolt<String, String> buildKafkaBolt() {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
+        props.put("bootstrap.servers", kafkaBrokerHost+":"+kafkaBrokerPort);
         props.put("acks", "1");
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         KafkaBolt<String, String> kafkabolt = new KafkaBolt<String, String>()
                 .withProducerProperties(props)
-                .withTopicSelector(new DefaultTopicSelector("phish-storm-response"))
+                .withTopicSelector(new DefaultTopicSelector(kafkaTopicResponse))
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper<String, String>());
         return kafkabolt;
     }

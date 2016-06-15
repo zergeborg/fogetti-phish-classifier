@@ -123,9 +123,11 @@ public class KafkaSpout extends BasicSchemeSpout {
     private BlockingQueue<ByteBufferAndKafkaMessageId> bufferq;
     private FailedMsgRetryManager retrymgr;
     private NonBlockingConsumerIterator iterator;
+    private Properties kafkaProps;
 
-    public KafkaSpout(Properties kafkaProperties, String topic, Scheme scheme) {
+    public KafkaSpout(Properties kafkaProps, Scheme scheme) {
         super(scheme);
+        this.kafkaProps = kafkaProps;
     }
 
     /**
@@ -164,16 +166,20 @@ public class KafkaSpout extends BasicSchemeSpout {
      */
     @Override
     public void open() {
-        String topic = "phish-storm-request";
-        String clientId = "phish-storm-client";
-        String brokerHost = "localhost";
-        int brokerPort = 9092;
+        String topic = kafkaProps.getProperty("kafka.consumer.topic", "phish-storm-request");
+        String clientId = kafkaProps.getProperty("kafka.consumer.client.id", "phish-storm-client");
+        String brokerHost = kafkaProps.getProperty("kafka.broker.host", "localhost");
+        int brokerPort = (int) kafkaProps.getOrDefault("kafka.broker.port", 9092);
+        int partitionNr = (int) kafkaProps.getOrDefault("kafka.consumer.partition.nr", 0);
+        int brokerTimeout = (int) kafkaProps.getOrDefault("kafka.broker.connection.timeout.ms", 100000);
+        String brokerZkStr = kafkaProps.getProperty("zookeeper.connect.string", "localhost:2181");
+
         Broker broker = new Broker(brokerHost, brokerPort);
-        int partitionNr = 0;
         Partition partition = new Partition(broker, topic, partitionNr);
-        SimpleConsumer consumer = new SimpleConsumer(brokerHost, brokerPort, 100000, 64 * 1024, clientId);
-        ZkHosts hosts = new ZkHosts("localhost:2181");
+        SimpleConsumer consumer = new SimpleConsumer(brokerHost, brokerPort, brokerTimeout, 64 * 1024, clientId);
+        ZkHosts hosts = new ZkHosts(brokerZkStr);
         KafkaConfig kafkaConfig = new KafkaConfig(hosts, topic, clientId);
+        
         bufferq = new PriorityBlockingQueue<>();
         retrymgr = new ExponentialBackoffMsgRetryManager(0, 1.0, 60 * 1000);
         iterator = new NonBlockingConsumerIterator(consumer, kafkaConfig, partition);

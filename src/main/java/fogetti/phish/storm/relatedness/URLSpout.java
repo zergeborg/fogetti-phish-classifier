@@ -35,8 +35,8 @@ public class URLSpout extends KafkaSpout {
     private transient CountMetric spoutFailed;
     private transient CountMetric spoutEmitted;
 
-	public URLSpout(Properties kafkaProperties, String topic, Scheme scheme) {
-	    super(kafkaProperties, topic, scheme);
+	public URLSpout(Properties kafkaProperties, Scheme scheme) {
+	    super(kafkaProperties, scheme);
 	}
 
 	@Override
