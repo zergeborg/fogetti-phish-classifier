@@ -41,13 +41,11 @@ public class KafkaSpout extends BasicSchemeSpout {
             CLASSIFIER
         }
         
-        public Partition partition;
         public long offset;
         public String value;
         public KAFKA_MESSAGE_TYPE type;
 
-        public KafkaMessageId(Partition partition, long offset, KAFKA_MESSAGE_TYPE type) {
-            this.partition = partition;
+        public KafkaMessageId(long offset, KAFKA_MESSAGE_TYPE type) {
             this.offset = offset;
             this.type = type;
         }
@@ -104,7 +102,7 @@ public class KafkaSpout extends BasicSchemeSpout {
                 if (msgs != null) {
                     for (MessageAndOffset msg : msgs) {
                         Message message = msg.message();
-                        KafkaMessageId msgId = new KafkaMessageId(partition, msg.offset(), KAFKA_MESSAGE_TYPE.GOOGLE_TREND);
+                        KafkaMessageId msgId = new KafkaMessageId(msg.offset(), KAFKA_MESSAGE_TYPE.GOOGLE_TREND);
                         ByteBufferAndKafkaMessageId data = new ByteBufferAndKafkaMessageId(message.payload(), msgId);
                         bufferq.put(data);
                         emittedoffset = Math.max(msg.nextOffset(), emittedoffset);
