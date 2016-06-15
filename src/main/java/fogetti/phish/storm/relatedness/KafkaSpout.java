@@ -1,5 +1,6 @@
 package fogetti.phish.storm.relatedness;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -31,8 +32,10 @@ import kafka.message.MessageAndOffset;
  */
 public class KafkaSpout extends BasicSchemeSpout {
     
-    public static class KafkaMessageId {
+    public static class KafkaMessageId implements Serializable {
         
+        private static final long serialVersionUID = 6646846771919861112L;
+
         public static enum KAFKA_MESSAGE_TYPE {
             GOOGLE_TREND,
             CLASSIFIER
@@ -50,7 +53,9 @@ public class KafkaSpout extends BasicSchemeSpout {
         }
     }
 
-    static class ByteBufferAndKafkaMessageId implements Comparable<ByteBufferAndKafkaMessageId> {
+    static class ByteBufferAndKafkaMessageId implements Comparable<ByteBufferAndKafkaMessageId>, Serializable {
+        
+        private static final long serialVersionUID = 7320285222381644135L;
         
         public final ByteBuffer buffer;
         public final KafkaMessageId msgId;
