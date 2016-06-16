@@ -90,15 +90,10 @@ public class IntersectionBolt extends AbstractRedisBolt {
 	private void save(Tuple input, String segment, Terms termset) {
         try (Jedis jedis = (Jedis) getInstance()) {
 	        String key = REDIS_SEGMENT_PREFIX + segment;
-	        if (!jedis.exists(key)) {
-	            logger.debug("Saving new segment [segment={}] and [termset={}] to Redis", segment, termset);
-	            String termString = mapper.writeValueAsString(termset);
-	            jedis.set(key, termString);
-	            intersectionSegmentSaved.incr();
-	        } else {
-                logger.debug("Skipping segment [segment={}] and [termset={}]", segment, termset);
-	            intersectionSegmentSkipped.incr();
-	        }
+            logger.debug("Saving new segment [segment={}] and [termset={}] to Redis", segment, termset);
+            String termString = mapper.writeValueAsString(termset);
+            jedis.set(key, termString);
+            intersectionSegmentSaved.incr();
 		} catch (JsonProcessingException e) {
 		    logger.error("Could not save the segment into Redis", e);
 		    collector.fail(input);
