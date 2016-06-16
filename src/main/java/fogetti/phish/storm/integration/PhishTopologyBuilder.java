@@ -105,7 +105,7 @@ public class PhishTopologyBuilder {
 			.setSpout("urlsource", buildURLSpout(kafkaSpoutProps), 1)
 			.setMaxSpoutPending(150);
 		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 8)
-		    .fieldsGrouping("urlsource", SUCCESS_STREAM, new Fields("url"))
+		    .shuffleGrouping("urlsource", SUCCESS_STREAM)
 		    .setNumTasks(16);
 		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
 		    .fieldsGrouping("classifier", new Fields("key", "message"))
