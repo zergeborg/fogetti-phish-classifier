@@ -1,5 +1,6 @@
 package fogetti.phish.storm.integration;
 
+import static fogetti.phish.storm.relatedness.URLSpout.INTERSECTION_STREAM;
 import static fogetti.phish.storm.relatedness.URLSpout.SUCCESS_STREAM;
 
 import java.io.File;
@@ -22,6 +23,8 @@ import fogetti.phish.storm.relatedness.URLBolt;
 import fogetti.phish.storm.relatedness.URLSpout;
 import fogetti.phish.storm.relatedness.intersection.ClassifierBolt;
 import fogetti.phish.storm.relatedness.intersection.IntersectionBolt;
+import fogetti.phish.storm.relatedness.intersection.KafkaIntersectionBolt;
+import fogetti.phish.storm.relatedness.intersection.SegmentSavingBolt;
 
 public class PhishTopologyBuilder {
 
@@ -104,25 +107,28 @@ public class PhishTopologyBuilder {
 		builder
 			.setSpout("urlsource", buildURLSpout(kafkaSpoutProps), 1)
 			.setMaxSpoutPending(150);
-		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 1)
-		    .shuffleGrouping("urlsource", SUCCESS_STREAM)
-		    .setNumTasks(1);
-		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
-		    .shuffleGrouping("classifier")
-		    .setNumTasks(1);
 		builder.setBolt("urlbolt", new URLBolt(), 1)
 		    .fieldsGrouping("urlsource", new Fields("str"))
 		    .setNumTasks(1);
         builder.setBolt("urlmatch", new MatcherBolt(countDataFile, psDataFile, poolConfig), 1)
             .fieldsGrouping("urlbolt", new Fields("url"))
             .setNumTasks(1);
-		builder.setBolt("googletrends", new ClientBuildingGoogleSemBolt(poolConfig, new File(proxyDataFile), new WrappedRequest()), 64)
+		builder.setBolt("googletrends", new ClientBuildingGoogleSemBolt(poolConfig, new File(proxyDataFile), new WrappedRequest()), 128)
 		    .addConfiguration("timeout", 15000)
             .fieldsGrouping("urlmatch", new Fields("word", "url"))
-			.setNumTasks(128);
+			.setNumTasks(256);
+        builder.setBolt("segmentsaving", segmentSavingBolt(poolConfig), 32)
+            .shuffleGrouping("googletrends")
+            .setNumTasks(128);
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
-			.globalGrouping("googletrends")
+		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
+        builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 1)
+            .shuffleGrouping("urlsource", SUCCESS_STREAM)
+            .setNumTasks(1);
+        builder.setBolt("kafkawriter", kafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
+            .shuffleGrouping("classifier")
+            .setNumTasks(1);
 		StormTopology topology = builder.createTopology();
 		return topology;
 	}
@@ -132,7 +138,7 @@ public class PhishTopologyBuilder {
         return spout;
     }
 
-    private static KafkaBolt<String, String> buildKafkaBolt(Properties props, String kafkaTopicResponse) {
+    private static KafkaBolt<String, String> kafkaBolt(Properties props, String kafkaTopicResponse) {
         KafkaBolt<String, String> kafkabolt = new KafkaBolt<String, String>()
                 .withProducerProperties(props)
                 .withTopicSelector(new DefaultTopicSelector(kafkaTopicResponse))
@@ -141,12 +147,17 @@ public class PhishTopologyBuilder {
         return kafkabolt;
     }
 
-    private static ClassifierBolt buildClassifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath, String proxyDataFile) throws IOException {
+    private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath, String proxyDataFile) throws IOException {
         return new ClassifierBolt(poolConfig, modelpath, instancesPath, proxyDataFile);
     }
 
+    private static SegmentSavingBolt segmentSavingBolt(JedisPoolConfig poolConfig) throws Exception {
+        SegmentSavingBolt callback = new SegmentSavingBolt(poolConfig);
+        return callback;
+    }
+
 	private static IntersectionBolt intersectionBolt(JedisPoolConfig poolConfig) throws Exception {
-		IntersectionBolt callback = new IntersectionBolt(poolConfig);
+		IntersectionBolt callback = new KafkaIntersectionBolt(poolConfig);
 		return callback;
 	}
 

@@ -26,6 +26,7 @@ import fogetti.phish.storm.relatedness.KafkaSpout.KafkaMessageId.KAFKA_MESSAGE_T
 public class URLSpout extends KafkaSpout {
 
     public static final String SUCCESS_STREAM = "success";
+    public static final String INTERSECTION_STREAM = "intersect";
 	
     private static final long serialVersionUID = -6424905468176142975L;
 	private static final Logger logger = LoggerFactory.getLogger(URLSpout.class);
@@ -68,18 +69,23 @@ public class URLSpout extends KafkaSpout {
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 	    super.declareOutputFields(declarer);
 		declarer.declareStream(SUCCESS_STREAM, new Fields("url"));
+        declarer.declareStream(INTERSECTION_STREAM, new Fields("url"));
 	}
 
 	@Override
 	public void ack(Object msgId) {
-	    super.ack(msgId);
-	    logger.info("Acking [{}]", msgId);
-	    spoutAcked.incr();
 	    KafkaMessageId id = (KafkaMessageId) msgId;
 	    if (id.type == KAFKA_MESSAGE_TYPE.GOOGLE_TREND) {
-    	    id.type = KAFKA_MESSAGE_TYPE.CLASSIFIER;
-    	    collector.emit(SUCCESS_STREAM, new Values(id), id);
+	        super.ack(msgId);
+    	    id.type = KAFKA_MESSAGE_TYPE.SEGMENT_SAVING;
+    	    collector.emit(INTERSECTION_STREAM, new Values(id), id);
 	    }
+        if (id.type == KAFKA_MESSAGE_TYPE.SEGMENT_SAVING) {
+            id.type = KAFKA_MESSAGE_TYPE.CLASSIFIER;
+            collector.emit(SUCCESS_STREAM, new Values(id), id);
+        }
+        logger.info("Acking [{}]", msgId);
+        spoutAcked.incr();
 	}
 
 	@Override

@@ -38,6 +38,7 @@ public class KafkaSpout extends BasicSchemeSpout {
 
         public static enum KAFKA_MESSAGE_TYPE {
             GOOGLE_TREND,
+            SEGMENT_SAVING,
             CLASSIFIER
         }
         
