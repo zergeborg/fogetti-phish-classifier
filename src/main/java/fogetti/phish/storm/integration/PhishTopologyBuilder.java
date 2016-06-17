@@ -104,9 +104,9 @@ public class PhishTopologyBuilder {
 		builder
 			.setSpout("urlsource", buildURLSpout(kafkaSpoutProps), 1)
 			.setMaxSpoutPending(150);
-		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 16)
+		builder.setBolt("classifier", buildClassifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 8)
 		    .shuffleGrouping("urlsource", SUCCESS_STREAM)
-		    .setNumTasks(64);
+		    .setNumTasks(16);
 		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
 		    .fieldsGrouping("classifier", new Fields("key", "message"))
 		    .setNumTasks(1);
@@ -116,10 +116,10 @@ public class PhishTopologyBuilder {
         builder.setBolt("urlmatch", new MatcherBolt(countDataFile, psDataFile, poolConfig), 1)
             .fieldsGrouping("urlbolt", new Fields("url"))
             .setNumTasks(1);
-		builder.setBolt("googletrends", new ClientBuildingGoogleSemBolt(poolConfig, new File(proxyDataFile), new WrappedRequest()), 128)
+		builder.setBolt("googletrends", new ClientBuildingGoogleSemBolt(poolConfig, new File(proxyDataFile), new WrappedRequest()), 64)
 		    .addConfiguration("timeout", 30000)
             .fieldsGrouping("urlmatch", new Fields("word", "url"))
-			.setNumTasks(256);
+			.setNumTasks(128);
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 			.globalGrouping("googletrends")
 			.setNumTasks(1);
