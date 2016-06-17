@@ -108,7 +108,7 @@ public class PhishTopologyBuilder {
 		    .shuffleGrouping("urlsource", SUCCESS_STREAM)
 		    .setNumTasks(16);
 		builder.setBolt("kafkawriter", buildKafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
-		    .fieldsGrouping("classifier", new Fields("key", "message"))
+		    .shuffleGrouping("classifier")
 		    .setNumTasks(1);
 		builder.setBolt("urlbolt", new URLBolt(), 1)
 		    .fieldsGrouping("urlsource", new Fields("str"))
@@ -137,6 +137,7 @@ public class PhishTopologyBuilder {
                 .withProducerProperties(props)
                 .withTopicSelector(new DefaultTopicSelector(kafkaTopicResponse))
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper<String, String>());
+        kafkabolt.setAsync(false);
         return kafkabolt;
     }
 
