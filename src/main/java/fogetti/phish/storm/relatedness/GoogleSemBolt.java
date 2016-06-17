@@ -33,6 +33,7 @@ import com.gargoylesoftware.htmlunit.WebClient;
 import fogetti.phish.storm.client.GoogleTrends;
 import fogetti.phish.storm.client.GoogleTrends.Builder;
 import fogetti.phish.storm.client.Terms;
+import fogetti.phish.storm.exception.NotEnoughSearchVolumeException;
 import fogetti.phish.storm.exception.QuotaLimitException;
 import redis.clients.jedis.Jedis;
 
@@ -109,20 +110,11 @@ public abstract class GoogleSemBolt extends AbstractRedisBolt {
 			if (segments != null) {
 			    terms = mapper.readValue(segments, Terms.class);
 			}
-            if (terms == null || terms.terms == null || (terms.terms.isEmpty() && terms.retryCnt < 3)) {
+            if (terms == null || terms.terms == null) {
                 logger.debug("Cached Google result not found for [segment={}]", segment);
-                int cnt = 0;
-                if (terms != null) {
-                    logger.debug("Retry count [{}]", terms.retryCnt);
-                    cnt = terms.retryCnt;
-                }
                 terms = calculateSearches(segment);
-                terms.retryCnt = ++cnt;
                 googleTrendSuccess.incr();
             } else {
-                if (terms.retryCnt >= 3) {
-                    logger.debug("Google search was retried 3 times already");
-                }
                 logger.debug("Cached Google result found for [segment={}]", segment);
                 googleSegmentLookupSuccess.incr();
             }
@@ -130,11 +122,17 @@ public abstract class GoogleSemBolt extends AbstractRedisBolt {
 			logger.debug("Acking [{}]", input);
 			collector.ack(input);
 		} catch(QuotaLimitException e) {
-            logger.error("Google Trend request failed", e);
+            logger.error("Google Trend request failed [reason={}]", e.getMessage());
             collector.fail(input);
             googleTrendOverLimit.incr();
+        } catch(NotEnoughSearchVolumeException e) {
+            Terms terms = new Terms();
+            collector.emit(input, new Values(terms, segment, encodedURL));
+            logger.debug("Acking [{}]", input);
+            collector.ack(input);
         } catch (NullPointerException e) {
-            logger.error("Google Trend request failed", e);
+            logger.error("Google Trend request failed [reason={}]", "Null pointer");
+            googleTrendFailure.incr();
             collector.fail(input);
 		} catch (IOException e) {
 		    if (e.getMessage() == null) {

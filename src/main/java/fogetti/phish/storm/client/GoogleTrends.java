@@ -18,6 +18,7 @@ import com.gargoylesoftware.htmlunit.TextPage;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import fogetti.phish.storm.exception.NotEnoughSearchVolumeException;
 import fogetti.phish.storm.exception.QuotaLimitException;
 
 public class GoogleTrends {
@@ -36,7 +37,6 @@ public class GoogleTrends {
     }
 
     public Set<Term> topSearches() throws IOException {
-        Set<Term> result = new HashSet<>();
         String query
             = String.format("http://www.google.com/trends/fetchComponent?hl=en-US&q=%s&cid=TOP_QUERIES_0_0", keyword);
         String html = buildHtml(query);
@@ -45,6 +45,7 @@ public class GoogleTrends {
         Elements mainElem = doc.select(".trends-table-data");
         if (mainElem.size() > 0) {
             Element table = mainElem.get(0);
+            Set<Term> result = new HashSet<>();
             for (Element row : table.select("tr")) {
                 Elements tds = row.select("td > span:first-child");
                 if (!tds.isEmpty()) {
@@ -52,12 +53,12 @@ public class GoogleTrends {
                     if (StringUtils.isNotBlank(text)) result.add(new Term(text.split("\\s+")));
                 }
             }
+            return result;
         }
-        return result;
+        return null;
     }
 
     public Set<Term> risingSearches() throws IOException {
-        Set<Term> result = new HashSet<>();
         String query
             = String.format("http://www.google.com/trends/fetchComponent?hl=en-US&q=%s&cid=RISING_QUERIES_0_0", keyword);
         String html = buildHtml(query);
@@ -66,6 +67,7 @@ public class GoogleTrends {
         Elements mainElem = doc.select(".trends-table-data");
         if (mainElem.size() > 0) {
             Element table = mainElem.get(0);
+            Set<Term> result = new HashSet<>();
             for (Element row : table.select("tr")) {
                 Elements tds = row.select("td > span:first-child");
                 if (!tds.isEmpty()) {
@@ -73,8 +75,9 @@ public class GoogleTrends {
                     if (StringUtils.isNotBlank(text)) result.add(new Term(text.split("\\s+")));
                 }
             }
+            return result;
         }
-        return result;
+        return null;
     }
 
     private String buildHtml(String query) throws IOException {
@@ -95,6 +98,17 @@ public class GoogleTrends {
     }
 
     private void findError(Document doc) {
+        Elements mainElem = doc.select(".trends-component-error");
+        if (mainElem.size() > 0) {
+            Element table = mainElem.get(0);
+            for (Element row : table.select("tr")) {
+                Elements tds = row.select("td");
+                if (!tds.isEmpty()) {
+                    String error = tds.get(0).text();
+                    if (error.contains("Not enough search volume to show results")) throw new NotEnoughSearchVolumeException();
+                }
+            }
+        }
         Elements errorDiv = doc.select(".errorSubTitle");
         if (errorDiv.isEmpty()) return;
         String error = errorDiv.get(0).text();
