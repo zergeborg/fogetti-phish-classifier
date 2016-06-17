@@ -179,11 +179,11 @@ public class MatcherBolt extends AbstractRedisBolt {
 
     private boolean saveResult(String encodedURL, Jedis jedis) {
         try {
-            List<String> message = jedis.lrange("classacked:"+encodedURL, 0L, 0L);
-            if (message == null || message.isEmpty()) {
+            String message = jedis.get("acked:"+encodedURL);
+            if (StringUtils.isBlank(message)) {
                 String result = mapper.writeValueAsString(ack);
                 logger.info("Saving [AckResult={}]", result);
-                jedis.rpush("classacked:"+encodedURL, result);
+                jedis.set("acked:"+encodedURL, result);
             }
         } catch (JsonProcessingException e) {
             logger.error("Could not save AckResult", e);

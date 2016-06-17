@@ -129,9 +129,9 @@ public class ClassifierBolt extends AbstractRedisBolt {
             logger.info("Acking enqueued message [{}]", url);
             AckResult result = null;
             try {
-                List<String> messages = jedis.blpop(0, new String[]{"classacked:"+url});
-                if (messages != null) {
-                    result = mapper.readValue(messages.get(1), AckResult.class);
+                String message = jedis.get("acked:"+url);
+                if (message != null) {
+                    result = mapper.readValue(message, AckResult.class);
                 } else {
                     logger.warn("Could not look up AckResult related to [{}]", url);
                     return new AckResult();
