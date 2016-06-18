@@ -81,12 +81,13 @@ public class KafkaSpout extends BasicSchemeSpout {
         private final SimpleConsumer consumer;
         private final KafkaConfig kafkaConfig;
         private final Partition partition;
-        private Long emittedoffset = 0L;
+        private Long emittedoffset;
 
-        public NonBlockingConsumerIterator(SimpleConsumer consumer, KafkaConfig kafkaConfig, Partition partition) {
+        public NonBlockingConsumerIterator(SimpleConsumer consumer, KafkaConfig kafkaConfig, Partition partition, Long emittedoffset) {
             this.consumer = consumer;
             this.kafkaConfig = kafkaConfig;
             this.partition = partition;
+            this.emittedoffset = emittedoffset;
         }
 
         public void run() {
@@ -122,7 +123,7 @@ public class KafkaSpout extends BasicSchemeSpout {
                 }
             } catch (TopicOffsetOutOfRangeException e) {
                 logger.error("Could not consumer Kafka messages", e);
-                offset = KafkaUtils.getOffset(consumer, kafkaConfig.topic, partition.partition, kafka.api.OffsetRequest.EarliestTime());
+                offset = KafkaUtils.getOffset(consumer, kafkaConfig.topic, partition.partition, kafka.api.OffsetRequest.LatestTime());
                 if (offset > emittedoffset) {
                     emittedoffset = offset;
                     logger.warn("{} Using new offset: {}", partition.partition, emittedoffset);
@@ -199,7 +200,8 @@ public class KafkaSpout extends BasicSchemeSpout {
         
         bufferq = new PriorityBlockingQueue<>();
         retrymgr = new ExponentialBackoffMsgRetryManager(0, 1.0, 60 * 1000);
-        iterator = new NonBlockingConsumerIterator(consumer, kafkaConfig, partition);
+        Long emittedOffset = KafkaUtils.getOffset(consumer, topic, partition.partition, kafka.api.OffsetRequest.LatestTime());
+        iterator = new NonBlockingConsumerIterator(consumer, kafkaConfig, partition, emittedOffset);
     }
 
 }
