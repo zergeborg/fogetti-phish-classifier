@@ -37,7 +37,7 @@ public class PhishTopologyRemoteRunner {
 		            kafkaBoltProps);
 		
 		Config config = new Config();
-		config.setNumWorkers(3);
+		config.setNumWorkers(6);
 		config.setMessageTimeoutSecs(30);
 		config.put(Config.TOPOLOGY_EXECUTOR_RECEIVE_BUFFER_SIZE,
 	               new Integer(16384));
