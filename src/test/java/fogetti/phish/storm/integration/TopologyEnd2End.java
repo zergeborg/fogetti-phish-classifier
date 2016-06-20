@@ -14,7 +14,7 @@ public class TopologyEnd2End {
 		    server.start();
     		String countDataFile = "/Users/fogetti/Work/fogetti-phish-storm/src/main/resources/1gram-count.txt";
     		String psDataFile = "/Users/fogetti/Work/fogetti-phish-storm/src/main/resources/public-suffix-list.dat";
-            String proxyDataFile = "/Users/fogetti/Work/proxy-check/working-proxies.txt";
+            String proxyDataFile = "/Users/fogetti/Work/fogetti-phish-ansible/phish-storm/working-proxies.txt";
     		String modelDataFile = "/Users/fogetti/Work/backup/weka-2016-06-12/random-forest.model";
             String instancesDataFile = "/Users/fogetti/Work/backup/weka-2016-06-12/labeled-instances.csv";
             String kafkaTopicResponse = "phish-storm-response";
