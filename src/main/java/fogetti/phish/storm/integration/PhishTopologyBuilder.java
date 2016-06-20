@@ -24,6 +24,7 @@ import fogetti.phish.storm.relatedness.URLSpout;
 import fogetti.phish.storm.relatedness.intersection.ClassifierBolt;
 import fogetti.phish.storm.relatedness.intersection.IntersectionBolt;
 import fogetti.phish.storm.relatedness.intersection.KafkaIntersectionBolt;
+import fogetti.phish.storm.relatedness.intersection.LoggingKafkaBolt;
 import fogetti.phish.storm.relatedness.intersection.SegmentSavingBolt;
 
 public class PhishTopologyBuilder {
@@ -139,7 +140,7 @@ public class PhishTopologyBuilder {
     }
 
     private static KafkaBolt<String, String> kafkaBolt(Properties props, String kafkaTopicResponse) {
-        KafkaBolt<String, String> kafkabolt = new KafkaBolt<String, String>()
+        KafkaBolt<String, String> kafkabolt = new LoggingKafkaBolt<String, String>()
                 .withProducerProperties(props)
                 .withTopicSelector(new DefaultTopicSelector(kafkaTopicResponse))
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper<String, String>());
