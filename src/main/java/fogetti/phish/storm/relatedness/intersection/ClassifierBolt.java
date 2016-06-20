@@ -116,7 +116,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
             AckResult result = findAckResult(encoded);
             URLSegments segments = findSegments(result);
             String verdict = classify(segments, result);
-            collector.emit(input, new Values(url, verdict.equals("yes") ? "SAFE" : "UNSAFE"));
+            collector.emit(input, new Values(url, verdict));
             collector.ack(input);
         } catch (Exception e) {
             logger.error("Classification failed", e);
@@ -187,9 +187,9 @@ public class ClassifierBolt extends AbstractRedisBolt {
             IntersectionResult intersection = new IntersectionResult(RDTermindex,REMTermindex,MLDTermindex,MLDPSTermindex, new WrappedRequest(), result.URL, client);
             intersection.init();
             logIntersectionResult(intersection, result.URL);
-            String verdict =  buildClassificationVerdict(intersection);
+            double[] dist =  buildClassificationDistribution(intersection);
             logger.info("Message classified");
-            return verdict;
+            return makeVerdict(dist);
         } else {
             logger.warn("There are no segments for [{}]. Skipping intersection", result.URL);
         }
@@ -261,7 +261,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
                     URL);
     }
 
-    private String buildClassificationVerdict(IntersectionResult intersection) throws Exception {
+    private double[] buildClassificationDistribution(IntersectionResult intersection) throws Exception {
         ArrayList<Attribute> attributes = new ArrayList<>(Collections.list(instances.enumerateAttributes()));
         attributes.remove(12);
         
@@ -286,11 +286,21 @@ public class ClassifierBolt extends AbstractRedisBolt {
         Instances labeled = new Instances(unlabeled);
 
         // label instances
-        double clsLabel = rforest.classifyInstance(unlabeled.instance(0));
+        Instance instance = unlabeled.instance(0);
+        double clsLabel = rforest.classifyInstance(instance);
         labeled.instance(0).setClassValue(clsLabel);
 
         // return labeled data
-        return labeled.classAttribute().value((int)clsLabel);
+        return rforest.distributionForInstance(instance);
     }
     
+    private String makeVerdict(double[] dist) {
+        String verdict = "yes";
+        double invalid = dist[1];
+        if (invalid <= 0.1) verdict = "SAFE";
+        if (invalid >= 0.9) verdict = "UNSAFE";
+        else verdict = "N/A";
+        return verdict;
+    }
+
 }
