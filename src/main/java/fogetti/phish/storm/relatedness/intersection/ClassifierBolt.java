@@ -299,7 +299,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
         double invalid = dist[1];
         if (invalid <= 0.1) verdict = "SAFE";
         if (invalid >= 0.9) verdict = "UNSAFE";
-        else verdict = "N/A";
+        else verdict = "CAN'T DETERMINE";
         return verdict;
     }
 
