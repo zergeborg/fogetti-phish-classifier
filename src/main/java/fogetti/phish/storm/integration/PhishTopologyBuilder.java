@@ -24,6 +24,7 @@ import fogetti.phish.storm.relatedness.URLSpout;
 import fogetti.phish.storm.relatedness.intersection.AlexaRankingBolt;
 import fogetti.phish.storm.relatedness.intersection.ClassifierBolt;
 import fogetti.phish.storm.relatedness.intersection.IntersectionBolt;
+import fogetti.phish.storm.relatedness.intersection.KafkaAlexaRankingBolt;
 import fogetti.phish.storm.relatedness.intersection.KafkaIntersectionBolt;
 import fogetti.phish.storm.relatedness.intersection.LoggingKafkaBolt;
 import fogetti.phish.storm.relatedness.intersection.SegmentSavingBolt;
@@ -125,11 +126,11 @@ public class PhishTopologyBuilder {
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
-        builder.setBolt("classifier", alexaBolt(proxyDataFile), 1)
+        builder.setBolt("alexa", alexaBolt(proxyDataFile), 1)
             .shuffleGrouping("urlsource", SUCCESS_STREAM)
             .setNumTasks(1);
         builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
-            .shuffleGrouping("urlsource", SUCCESS_STREAM)
+            .shuffleGrouping("alexa")
             .setNumTasks(1);
         builder.setBolt("kafkawriter", kafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
             .shuffleGrouping("classifier")
@@ -153,11 +154,11 @@ public class PhishTopologyBuilder {
     }
 
     private static AlexaRankingBolt alexaBolt(String proxyDataFile) throws IOException {
-        return new AlexaRankingBolt(proxyDataFile);
+        return new KafkaAlexaRankingBolt(proxyDataFile);
     }
 
     private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {
-        return new ClassifierBolt(poolConfig, modelpath, instancesPath, proxyDataFile);
+        return new ClassifierBolt(poolConfig, modelpath, instancesPath);
     }
 
     private static SegmentSavingBolt segmentSavingBolt(JedisPoolConfig poolConfig) throws Exception {
