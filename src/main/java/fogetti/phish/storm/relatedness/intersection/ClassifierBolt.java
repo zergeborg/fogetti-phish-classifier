@@ -143,11 +143,13 @@ public class ClassifierBolt extends AbstractRedisBolt {
 
     private URLSegments findSegments(AckResult result) {
         try (Jedis jedis = (Jedis) getInstance()) {
-            String encodedURL = encoder.encodeToString(result.URL.getBytes(StandardCharsets.UTF_8));
-            String key = REDIS_INTERSECTION_PREFIX + encodedURL;
-            Map<String, String> rawSegments = jedis.hgetAll(key);
-            URLSegments segments = URLSegments.fromStringMap(rawSegments);
-            return segments;
+            if (result != null && result.URL != null) {
+                String encodedURL = encoder.encodeToString(result.URL.getBytes(StandardCharsets.UTF_8));
+                String key = REDIS_INTERSECTION_PREFIX + encodedURL;
+                Map<String, String> rawSegments = jedis.hgetAll(key);
+                URLSegments segments = URLSegments.fromStringMap(rawSegments);
+                return segments;
+            }
         } catch (IOException e) {
             logger.error("Could not find saved segments", e);
         }
