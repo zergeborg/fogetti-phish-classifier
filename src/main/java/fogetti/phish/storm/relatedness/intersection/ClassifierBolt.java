@@ -116,8 +116,12 @@ public class ClassifierBolt extends AbstractRedisBolt {
             AckResult result = findAckResult(encoded);
             URLSegments segments = findSegments(result);
             String verdict = classify(segments, result);
-            collector.emit(input, new Values(url, verdict));
-            collector.ack(input);
+            if (verdict != null) {
+                collector.emit(input, new Values(url, verdict));
+                collector.ack(input);
+            } else {
+                collector.fail(input);
+            }
         } catch (Exception e) {
             logger.error("Classification failed", e);
             collector.fail(input);
@@ -176,7 +180,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
     }
 
     private String classify(URLSegments segments, AckResult result) throws Exception {
-        if (segments != null) {
+        if (segments != null && segments.count() == 0) {
             Map<String, Terms> MLDTermindex = segments.getMLDTerms(result);
             Map<String, Terms> MLDPSTermindex = segments.getMLDPSTerms(result);
             Map<String, Terms> REMTermindex = segments.getREMTerms(result);
