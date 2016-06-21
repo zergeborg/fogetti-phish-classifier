@@ -87,8 +87,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
         String url = input.getStringByField("url");
         String ranking = input.getStringByField("ranking");
         try (Jedis jedis = (Jedis) getInstance()) {
-            String encoded = encoder.encodeToString(url.getBytes(StandardCharsets.UTF_8));
-            AckResult result = findAckResult(encoded);
+            AckResult result = findAckResult(url);
             URLSegments segments = findSegments(result);
             String verdict = classify(segments, result, ranking);
             if (verdict != null) {
