@@ -87,8 +87,8 @@ public class ClassifierBolt extends AbstractRedisBolt {
         String url = input.getStringByField("url");
         String ranking = input.getStringByField("ranking");
         try (Jedis jedis = (Jedis) getInstance()) {
-            AckResult result = findAckResult(url);
-            URLSegments segments = findSegments(result);
+            AckResult result = findAckResult(url, jedis);
+            URLSegments segments = findSegments(result, jedis);
             String verdict = classify(segments, result, ranking);
             if (verdict != null) {
                 collector.emit(input, new Values(url, verdict));
@@ -102,25 +102,23 @@ public class ClassifierBolt extends AbstractRedisBolt {
         }
     }
 
-    private AckResult findAckResult(String url) {
-        try (Jedis jedis = (Jedis) getInstance()) {
-            logger.info("Acking enqueued message [{}]", url);
-            AckResult result = null;
-            try {
-                String message = jedis.get("acked:"+url);
-                if (message != null) {
-                    result = mapper.readValue(message, AckResult.class);
-                } else {
-                    logger.warn("Could not look up AckResult related to [{}]", url);
-                    return new AckResult();
-                }
-                if (result != null) {
-                    save(url, jedis);
-                    return result;
-                }
-            } catch (IOException e) {
+    private AckResult findAckResult(String url, Jedis jedis) {
+        logger.info("Acking enqueued message [{}]", url);
+        AckResult result = null;
+        try {
+            String message = jedis.get("acked:"+url);
+            if (message != null) {
+                result = mapper.readValue(message, AckResult.class);
+            } else {
                 logger.warn("Could not look up AckResult related to [{}]", url);
+                return new AckResult();
             }
+            if (result != null) {
+                save(url, jedis);
+                return result;
+            }
+        } catch (IOException e) {
+            logger.warn("Could not look up AckResult related to [{}]", url);
         }
         return new AckResult();
     }
@@ -140,8 +138,8 @@ public class ClassifierBolt extends AbstractRedisBolt {
         return encodedURL;
     }
 
-    private URLSegments findSegments(AckResult result) {
-        try (Jedis jedis = (Jedis) getInstance()) {
+    private URLSegments findSegments(AckResult result, Jedis jedis) {
+        try {
             if (result != null && result.URL != null) {
                 String encodedURL = encoder.encodeToString(result.URL.getBytes(StandardCharsets.UTF_8));
                 String key = REDIS_INTERSECTION_PREFIX + encodedURL;
