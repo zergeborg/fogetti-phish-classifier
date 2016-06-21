@@ -297,9 +297,9 @@ public class ClassifierBolt extends AbstractRedisBolt {
     private String makeVerdict(double[] dist) {
         String verdict = "SAFE";
         double invalid = dist[1];
+        if (invalid < 0.9 && invalid > 0.1) verdict = "CAN'T DETERMINE";
         if (invalid <= 0.1) verdict = "SAFE";
         if (invalid >= 0.9) verdict = "UNSAFE";
-        else verdict = "CAN'T DETERMINE";
         return verdict;
     }
 
