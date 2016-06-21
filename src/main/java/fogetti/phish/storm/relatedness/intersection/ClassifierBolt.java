@@ -154,7 +154,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
     }
 
     private String classify(URLSegments segments, AckResult result, String ranking) throws Exception {
-        if (segments != null && segments.count() == 0) {
+        if (segments != null && segments.count() != 0) {
             Map<String, Terms> MLDTermindex = segments.getMLDTerms(result);
             Map<String, Terms> MLDPSTermindex = segments.getMLDPSTerms(result);
             Map<String, Terms> REMTermindex = segments.getREMTerms(result);
