@@ -21,6 +21,7 @@ import fogetti.phish.storm.relatedness.ClientBuildingGoogleSemBolt;
 import fogetti.phish.storm.relatedness.MatcherBolt;
 import fogetti.phish.storm.relatedness.URLBolt;
 import fogetti.phish.storm.relatedness.URLSpout;
+import fogetti.phish.storm.relatedness.intersection.AlexaRankingBolt;
 import fogetti.phish.storm.relatedness.intersection.ClassifierBolt;
 import fogetti.phish.storm.relatedness.intersection.IntersectionBolt;
 import fogetti.phish.storm.relatedness.intersection.KafkaIntersectionBolt;
@@ -124,7 +125,10 @@ public class PhishTopologyBuilder {
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
-        builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile, proxyDataFile), 1)
+        builder.setBolt("classifier", alexaBolt(proxyDataFile), 1)
+            .shuffleGrouping("urlsource", SUCCESS_STREAM)
+            .setNumTasks(1);
+        builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
             .shuffleGrouping("urlsource", SUCCESS_STREAM)
             .setNumTasks(1);
         builder.setBolt("kafkawriter", kafkaBolt(kafkaBoltProps, kafkaTopicResponse), 1)
@@ -148,7 +152,11 @@ public class PhishTopologyBuilder {
         return kafkabolt;
     }
 
-    private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath, String proxyDataFile) throws IOException {
+    private static AlexaRankingBolt alexaBolt(String proxyDataFile) throws IOException {
+        return new AlexaRankingBolt(proxyDataFile);
+    }
+
+    private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {
         return new ClassifierBolt(poolConfig, modelpath, instancesPath, proxyDataFile);
     }
 
