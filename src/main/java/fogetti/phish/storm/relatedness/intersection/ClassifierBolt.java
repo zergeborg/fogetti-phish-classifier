@@ -295,6 +295,7 @@ public class ClassifierBolt extends AbstractRedisBolt {
     }
     
     private String makeVerdict(double[] dist) {
+        logger.info("Instance distribution is [{}, {}]", dist[0], dist[1]);
         String verdict = "SAFE";
         double invalid = dist[1];
         if (invalid < 0.9 && invalid > 0.1) verdict = "CAN'T DETERMINE";
