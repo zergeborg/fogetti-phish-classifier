@@ -126,9 +126,9 @@ public class PhishTopologyBuilder {
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
-        builder.setBolt("alexa", alexaBolt(proxyDataFile), 4)
-            .shuffleGrouping("urlsource", SUCCESS_STREAM)
-            .setNumTasks(4);
+        builder.setBolt("alexa", alexaBolt(proxyDataFile), 16)
+            .allGrouping("urlsource", SUCCESS_STREAM)
+            .setNumTasks(16);
         builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
             .shuffleGrouping("alexa")
             .setNumTasks(1);
