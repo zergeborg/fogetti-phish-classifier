@@ -126,7 +126,7 @@ public class PhishTopologyBuilder {
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
-        builder.setBolt("alexa", alexaBolt(proxyDataFile), 16)
+        builder.setBolt("alexa", alexaBolt(poolConfig, proxyDataFile), 16)
             .shuffleGrouping("urlsource", SUCCESS_STREAM)
             .setNumTasks(16);
         builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
@@ -153,8 +153,8 @@ public class PhishTopologyBuilder {
         return kafkabolt;
     }
 
-    private static AlexaRankingBolt alexaBolt(String proxyDataFile) throws IOException {
-        return new KafkaAlexaRankingBolt(proxyDataFile);
+    private static AlexaRankingBolt alexaBolt(JedisPoolConfig config, String proxyDataFile) throws IOException {
+        return new KafkaAlexaRankingBolt(config, proxyDataFile);
     }
 
     private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {
