@@ -51,6 +51,8 @@ public class PhishTopologyBuilder {
     private static String redisHost = "petrucci";
     private static int redisPort = 6379;
     private static String redisPassword = "Macska12";
+    private static String accessKey = "accessKey";
+    private static String secretKey = "secretKey";
     
 	public static StormTopology build() throws Exception {
         Properties kafkaSpoutProps = buildSpoutProps();
@@ -66,7 +68,9 @@ public class PhishTopologyBuilder {
 		        redisPassword,
 		        kafkaTopicResponse,
 		        kafkaSpoutProps,
-		        kafkaBoltProps);
+		        kafkaBoltProps,
+		        accessKey,
+		        secretKey);
 	}
 
     private static Properties buildSpoutProps() {
@@ -102,7 +106,9 @@ public class PhishTopologyBuilder {
 	        String redispword,
 	        String kafkaTopicResponse,
 	        Properties kafkaSpoutProps,
-	        Properties kafkaBoltProps) throws Exception {
+	        Properties kafkaBoltProps,
+	        String accessKey,
+	        String secretKey) throws Exception {
 		TopologyBuilder builder = new TopologyBuilder();
 
 		JedisPoolConfig poolConfig = new JedisPoolConfig.Builder()
@@ -126,7 +132,7 @@ public class PhishTopologyBuilder {
 		builder.setBolt("intersection", intersectionBolt(poolConfig), 1)
 		    .shuffleGrouping("urlsource", INTERSECTION_STREAM)
 			.setNumTasks(1);
-        builder.setBolt("alexa", alexaBolt(poolConfig, proxyDataFile), 16)
+        builder.setBolt("alexa", alexaBolt(poolConfig, accessKey, secretKey), 16)
             .shuffleGrouping("urlsource", SUCCESS_STREAM)
             .setNumTasks(16);
         builder.setBolt("classifier", classifierBolt(poolConfig, modelDataFile, instancesDataFile), 1)
@@ -153,8 +159,8 @@ public class PhishTopologyBuilder {
         return kafkabolt;
     }
 
-    private static AlexaRankingBolt alexaBolt(JedisPoolConfig config, String proxyDataFile) throws IOException {
-        return new KafkaAlexaRankingBolt(config, proxyDataFile);
+    private static AlexaRankingBolt alexaBolt(JedisPoolConfig config, String accessKey, String secretKey) throws IOException {
+        return new KafkaAlexaRankingBolt(config, accessKey, secretKey);
     }
 
     private static ClassifierBolt classifierBolt(JedisPoolConfig poolConfig, String modelpath, String instancesPath) throws IOException {

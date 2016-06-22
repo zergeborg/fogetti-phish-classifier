@@ -36,7 +36,9 @@ public class TopologyEnd2End {
     		        redisPassword,
     		        kafkaTopicResponse,
     		        kafkaSpoutProps,
-    		        kafkaBoltProps);
+    		        kafkaBoltProps,
+    		        null,
+    		        null);
     		PhishTopologyLocalRunner.run(args, topology);
 		} finally {
 		    Thread.currentThread().join();

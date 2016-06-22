@@ -21,6 +21,8 @@ public class PhishTopologyRemoteRunner {
         String redisHost = args[14];
         int redisPort = Integer.parseInt(args[15]);
         String redisPassword = args[16];
+        String accessKey = args[17];
+        String secretKey = args[18];
 
 		StormTopology topology
 		    = PhishTopologyBuilder.build(
@@ -34,7 +36,9 @@ public class PhishTopologyRemoteRunner {
 		            redisPassword,
 		            kafkaTopicResponse,
 		            kafkaSpoutProps,
-		            kafkaBoltProps);
+		            kafkaBoltProps,
+		            accessKey,
+		            secretKey);
 		
 		Config config = new Config();
 		config.setNumWorkers(3);
