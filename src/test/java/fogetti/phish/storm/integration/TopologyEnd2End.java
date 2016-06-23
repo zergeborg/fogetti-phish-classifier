@@ -23,6 +23,8 @@ public class TopologyEnd2End {
             String redisHost = "localhost";
             int redisPort = 6379;
             String redisPassword = null;
+            String accessKey = args[0];
+            String secretKey = args[1];
             Properties kafkaSpoutProps = buildSpoutProps(kafkaBrokerHost, kafkaBrokerPort);
             Properties kafkaBoltProps = buildBoltProps(kafkaBrokerHost, kafkaBrokerPort);
     		StormTopology topology = PhishTopologyBuilder.build(
@@ -37,8 +39,8 @@ public class TopologyEnd2End {
     		        kafkaTopicResponse,
     		        kafkaSpoutProps,
     		        kafkaBoltProps,
-    		        null,
-    		        null);
+    		        accessKey,
+    		        secretKey);
     		PhishTopologyLocalRunner.run(args, topology);
 		} finally {
 		    Thread.currentThread().join();
